@@ -8,7 +8,7 @@ from mongodbConnection import connect_mongo
 def merge_data(movies, ratings, links, merged_tags):
     datas = pd.merge(movies, ratings, on='movieId')
     datas = pd.merge(datas, links, on='movieId')
-    datas = pd.merge(datas, merged_tags, on=['movieId', 'userId'])
+    datas = pd.merge(datas, merged_tags, on=['movieId', 'userId'], how='left')
     datas = datas[['movieId', 'imdbId', 'tmdbId', 'title', 'genres', 'userId', 'rating', 'tags']].\
         sort_values(by=['movieId', 'userId'], ascending=True)
 
@@ -49,15 +49,21 @@ def create_document(df, col):
     for i in movie[['movieId']].itertuples(index=False):
         this_movie = (df[(df['movieId'] == i)])
 
-        agg_info = this_movie[['movieId', 'title', 'genres']]
+        agg_info = this_movie[['movieId', 'imdbId', 'tmdbId', 'title', 'genres']]
 
-        tc = this_movie[['userId', 'rating']]
+        user = this_movie[['userId', 'rating', 'tags']]
 
         entries = json.dumps({
             "MovieID": str(i[0]),
+            "ImdbID": agg_info['imdbId'].values[0],
+            "TmdbID": agg_info['tmdbId'].values[0],
             "Title": agg_info['title'].values[0],
+            "Year": "123",
+            "URL": "123",
             "Genres": agg_info['genres'].values[0],
-            "Athletes": tc.to_dict('records')
+            "Director": "123",
+            "Actor": "123",
+            "Rate": user.to_dict('records')
         })
 
         col.insert_one(json.loads(entries))
@@ -82,8 +88,9 @@ def main():
         datas = pd.read_csv("Datasets/movie/datas.csv", sep=',', delimiter=None, encoding='latin-1')
     except FileNotFoundError:
         merge_data(movies, ratings, links, merged_tags)
+        datas = pd.read_csv("Datasets/movie/datas.csv", sep=',', delimiter=None, encoding='latin-1')
 
-    # create_document(datas, col)
+    create_document(datas, col)
 
 
 if __name__ == '__main__':
