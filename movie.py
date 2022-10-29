@@ -75,10 +75,20 @@ def movie_detail(movie_url):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'lxml')
 
-            movie_year = soup.select_one('a[class="ipc-link ipc-link--baseAlt ipc-link--inherit-color sc-8c396aa2-1 '
-                                         'WIUyh"]').string
+            movie_year_tag = soup.select_one('a[class="ipc-link ipc-link--baseAlt ipc-link--inherit-color '
+                                             'sc-8c396aa2-1 WIUyh"]')
 
-            movie_image = soup.select_one('img[class="ipc-image"]')['src']
+            if movie_year_tag is None:
+                movie_year = 0
+            else:
+                movie_year = movie_year_tag.string
+
+            movie_image_tag = soup.select_one('img[class="ipc-image"]')
+
+            if movie_image_tag is None:
+                movie_image = "not exist"
+            else:
+                movie_image = movie_image_tag['src']
 
             movie_description = soup.select_one('span[class="sc-16ede01-0 fMPjMP"]').string
 
@@ -137,9 +147,10 @@ def get_cast_data(actors):
 
 def create_document(df, col):
     movie = df[['movieId']].drop_duplicates().sort_values(['movieId'], ascending=[True])
+    error_array = []
 
     for i in movie[['movieId']].itertuples(index=False):
-        # if int(i[0]) < 26528:
+        # if int(i[0]) < 180777:
         #     continue
 
         this_movie = (df[(df['movieId'] == i)])
@@ -148,8 +159,11 @@ def create_document(df, col):
 
         user = this_movie[['userId', 'rating', 'tags']]
 
-        movie_year, movie_image, movie_description, director_id, director_name, director_link, actors_dict\
+        movie_year, movie_image, movie_description, director_id, director_name, director_link, actors_dict \
             = movie_detail(agg_info['URL'].values[0])
+
+        if director_id == 0:
+            error_array.append(int(i[0]))
 
         entries = json.dumps({
             "movieId": int(i[0]),
@@ -171,6 +185,8 @@ def create_document(df, col):
         })
         print(json.loads(entries))
         col.insert_one(json.loads(entries))
+
+    print(error_array)
 
 
 def main():
